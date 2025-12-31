@@ -3,6 +3,20 @@ import '../widgets/message_bubble.dart';
 import '../widgets/input_box.dart';
 import '../models/message_model.dart';
 import 'chat_history_screen.dart';
+import 'dart:async';
+import '../services/api_service.dart';
+import 'dart:math';
+import '../models/chat_session.dart';
+import '../services/chat_store.dart';
+
+// ChatSession? _currentChat;
+// void _startNewChat() {
+//   setState(() {
+//     messages = [];
+//     _currentChat = null;
+//   });
+// }
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -12,25 +26,93 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   List<Message> messages = [];
+  ChatSession? _currentChat;
+  bool _isGenerating = false;
+
   final ScrollController _scrollController = ScrollController();
-
-  void _sendMessage(String text) {
-    if (text.trim().isEmpty) return;
-
-    // Add user message
+  // bool _isGenerating = false;
+    void _startNewChat() {
     setState(() {
-      messages.add(Message(text: text, isUser: true));
-    });
-    _scrollToBottom();
-
-    // Add AI reply after 500ms
-    Future.delayed(const Duration(milliseconds: 500), () {
-      setState(() {
-        messages.add(Message(text: "AI reply to: $text", isUser: false));
-      });
-      _scrollToBottom();
+      messages.clear();
+      _currentChat = null;
     });
   }
+  
+  void _loadChatFromHistory(ChatSession chat) {
+    setState(() {
+      _currentChat = chat;
+      messages = List.from(chat.messages);
+    });
+  }
+
+  // void _sendMessage(String text) {
+  //   if (text.trim().isEmpty) return;
+
+  //   // Add user message
+  //   setState(() {
+  //     messages.add(Message(text: text, isUser: true));
+  //   });
+  //   _scrollToBottom();
+
+  //   // Add AI reply after 500ms
+  //   Future.delayed(const Duration(milliseconds: 500), () {
+  //     setState(() {
+  //       messages.add(Message(text: "AI reply to: $text", isUser: false));
+  //     });
+  //     _scrollToBottom();
+  //   });
+  // }
+void _sendMessage(String text) async {
+  if (text.trim().isEmpty || _isGenerating) return;
+
+  setState(() {
+    _isGenerating = true;
+    messages.add(Message(text: text, isUser: true));
+
+    // 🆕 Create chat session on first message
+    _currentChat ??= ChatSession(
+      id: Random().nextInt(999999).toString(),
+      title: text.length > 30 ? text.substring(0, 30) : text,
+      messages: [],
+      createdAt: DateTime.now(),
+    );
+  });
+
+  final aiReply = await AIService.askAIWithContext(messages);
+
+  final aiMessage = Message(text: "", isUser: false);
+  setState(() {
+    messages.add(aiMessage);
+  });
+
+  int index = 0;
+  Timer.periodic(const Duration(milliseconds: 25), (timer) {
+    if (index < aiReply.length) {
+      setState(() {
+        aiMessage.text += aiReply[index];
+      });
+      index++;
+    } else {
+      timer.cancel();
+
+      // 🧠 Save conversation to history
+      _currentChat!.messages.clear();
+      _currentChat!.messages.addAll(messages);
+
+      if (!ChatStore.history.contains(_currentChat)) {
+        ChatStore.history.insert(0, _currentChat!);
+      }
+
+      setState(() {
+        _isGenerating = false;
+      });
+    }
+  });
+}
+
+
+
+
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
@@ -42,11 +124,14 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      drawer: const ChatHistoryScreen(),
+      @override
+      Widget build(BuildContext context) {
+        return Scaffold(
+          backgroundColor: Colors.black,
+          drawer: ChatHistoryScreen(
+      onChatSelected: _loadChatFromHistory,
+    ),
+
       drawerEnableOpenDragGesture: true,
       drawerEdgeDragWidth: 80,
       appBar: AppBar(
@@ -69,7 +154,13 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          InputBox(onSend: _sendMessage),
+         InputBox(
+  onSend: _sendMessage,
+  isDisabled: _isGenerating,
+  onNewChat: _startNewChat,
+),
+
+
         ],
       ),
     );

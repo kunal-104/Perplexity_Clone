@@ -1,5 +1,5 @@
 class Message {
-  final String text;
+  String text;
   final bool isUser;
 
   Message({

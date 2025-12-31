@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/message_model.dart';
@@ -46,4 +44,3 @@ class AIService {
     }
   }
 }
->>>>>>> 25d0ce2 (implemented history and improve the input box design)
