@@ -3,20 +3,58 @@ import 'package:http/http.dart' as http;
 import '../models/message_model.dart';
 
 class AIService {
-  static const String _apiKey = "YOUR-API-KEY";
+  static const String _apiKey = "API_KEY_HERE";
   static const String _endpoint =
       "https://api.perplexity.ai/chat/completions";
+
+  static const String systemPrompt = '''
+You are an AI assistant modeled after Sherlock Holmes.
+
+Identity:
+- You are an intelligent AI assistant.
+- You reason logically and observe details carefully.
+
+Behavior rules:
+- Reply briefly and precisely.
+- Be confident, analytical, and slightly witty.
+- Avoid unnecessary words.
+- Do not explain obvious things unless asked.
+- If unsure, say so plainly.
+
+Style:
+- Sharp.
+- Intelligent.
+- Calm.
+- No emojis.
+- No fluff.
+
+Your goal is to deliver the most insightful answer in the fewest words.
+''';
+
 
   static Future<String> askAIWithContext(List<Message> messages) async {
     try {
       // ✅ FILTER empty messages (CRITICAL)
-      final apiMessages = messages
+      // final apiMessages = messages
+      //     .where((m) => m.text.trim().isNotEmpty)
+      //     .map((m) => {
+      //           "role": m.isUser ? "user" : "assistant",
+      //           "content": m.text,
+      //         })
+      //     .toList();
+      final apiMessages = [
+      {
+        "role": "system",
+        "content": systemPrompt,
+      },
+      ...messages
           .where((m) => m.text.trim().isNotEmpty)
           .map((m) => {
                 "role": m.isUser ? "user" : "assistant",
                 "content": m.text,
-              })
-          .toList();
+              }),
+    ];
+
 
       final response = await http.post(
         Uri.parse(_endpoint),
@@ -26,7 +64,7 @@ class AIService {
           "Accept": "application/json",
         },
         body: jsonEncode({
-          "model": "sonar-pro",
+          "model": "sonar",
           "messages": apiMessages,
           "max_tokens": 512,
         }),

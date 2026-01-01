@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/chat_screen.dart';
+import 'services/chat_store.dart';
+
 // this is my update
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ChatStore.loadHistory();
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

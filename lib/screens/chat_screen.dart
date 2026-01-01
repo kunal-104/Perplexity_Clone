@@ -9,14 +9,6 @@ import 'dart:math';
 import '../models/chat_session.dart';
 import '../services/chat_store.dart';
 
-// ChatSession? _currentChat;
-// void _startNewChat() {
-//   setState(() {
-//     messages = [];
-//     _currentChat = null;
-//   });
-// }
-
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -30,7 +22,6 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isGenerating = false;
 
   final ScrollController _scrollController = ScrollController();
-  // bool _isGenerating = false;
     void _startNewChat() {
     setState(() {
       messages.clear();
@@ -45,23 +36,21 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  // void _sendMessage(String text) {
-  //   if (text.trim().isEmpty) return;
+  Future<void> _persistCurrentChat() async {
+  if (_currentChat == null) return;
 
-  //   // Add user message
-  //   setState(() {
-  //     messages.add(Message(text: text, isUser: true));
-  //   });
-  //   _scrollToBottom();
+  _currentChat!.messages
+    ..clear()
+    ..addAll(messages);
 
-  //   // Add AI reply after 500ms
-  //   Future.delayed(const Duration(milliseconds: 500), () {
-  //     setState(() {
-  //       messages.add(Message(text: "AI reply to: $text", isUser: false));
-  //     });
-  //     _scrollToBottom();
-  //   });
-  // }
+  if (!ChatStore.history.any((c) => c.id == _currentChat!.id)) {
+    await ChatStore.add(_currentChat!);
+  } else {
+    await ChatStore.saveHistory();
+  }
+}
+
+
 void _sendMessage(String text) async {
   if (text.trim().isEmpty || _isGenerating) return;
 
@@ -95,13 +84,7 @@ void _sendMessage(String text) async {
     } else {
       timer.cancel();
 
-      // 🧠 Save conversation to history
-      _currentChat!.messages.clear();
-      _currentChat!.messages.addAll(messages);
-
-      if (!ChatStore.history.contains(_currentChat)) {
-        ChatStore.history.insert(0, _currentChat!);
-      }
+     _persistCurrentChat();
 
       setState(() {
         _isGenerating = false;
